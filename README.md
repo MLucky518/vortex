@@ -31,55 +31,75 @@ cp .env.default .env
 The defaults work for simulator development. You only edit `.env` when
 running on the real aircraft.
 
-## Running
+## Running the tests
+
+```bash
+uv run pytest
+```
+
+No PX4, no simulator, no hardware required. Pure logic like flight path
+geometry lives in its own module specifically so it can be tested in
+milliseconds instead of thirty seconds.
+
+Keep it that way: math goes in a plain function with a test, MAVSDK calls
+stay thin.
+
+## Running the flight code
+
+Needs the simulator running. See `SIMULATOR.md`.
 
 ```bash
 uv run 01_telemetry.py
 ```
 
-uv handles the Python version, the environment, and the dependencies.
-There is no virtualenv to create or activate.
+`01_telemetry.py` is read only. It connects, prints position, and cannot
+arm or move the aircraft. Run it first in any new environment to prove
+the link works.
 
-If you hit an error and Google it, every answer will tell you to run
-`pip install` or activate a venv. Ignore that and ask. Mixing uv and pip
-is the one way this setup gets confusing.
-
-Adding a dependency:
+## Adding dependencies
 
 ```bash
 uv add mavsdk            # runtime
 uv add --dev pytest      # development only
 ```
 
-Commit `pyproject.toml` and `uv.lock` when you do.
+Commit `pyproject.toml` and `uv.lock` when you do. The lockfile is what
+makes everyone's environment identical, including the Pi later.
 
-## Tests
+If you hit an error and Google it, every answer will tell you to run
+`pip install` or activate a venv. Ignore that and ask. Mixing uv and pip
+is the one way this setup gets confusing.
 
-```bash
-uv run pytest
+## What is in here
+
+```text
+config.py                  connection address and mission constants
+geometry.py                flight path math, no hardware dependencies
+01_telemetry.py            connects to PX4 and prints position
+tests/test_geometry.py     runs without a simulator
+.env.default               committed template, copy to .env
 ```
 
-These do not need PX4, the simulator, or hardware. Pure logic like flight
-path geometry lives in its own module specifically so it can be tested in
-milliseconds instead of thirty seconds.
+## The one architectural idea
 
-Keep it that way. Math goes in a plain function with a test. MAVSDK calls
-stay thin.
+`config.py` reads one environment variable:
 
-## Simulator
+```text
+simulator        udpin://0.0.0.0:14540        (default)
+real aircraft    serial:///dev/serial0:921600
+```
 
-Only needed if you are writing or testing flight code. Skip this if you
-are doing the build, the video, or the slides.
-
-TODO: document the working setup once it is verified end to end. Do not
-paste a procedure from the internet into this section without running it
-against this repo first.
+Nothing else in the codebase knows which one it is talking to. MAVLink
+does not care whether it travels over UDP, a serial cable, or a radio.
+That is why we can build the entire software side now and change one
+string when the hardware arrives.
 
 ## Documentation
 
 | File | What it covers |
 |---|---|
 | `HOW-IT-WORKS.md` | Every part of the kit, what PX4 and MAVLink are |
+| `SIMULATOR.md` | Running PX4 SITL on macOS, including the traps |
 | `PLAN.md` | Phased build plan, each phase with a completion test |
 | `PI-SETUP.md` | Flashing and configuring the Raspberry Pi |
 | `SECURITY.md` | What we know is exposed, and what to fix before flight |
